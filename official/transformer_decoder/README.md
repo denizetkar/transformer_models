@@ -1,5 +1,5 @@
 # Transformer Decoder Language Model
-This is a derivation on the original transformer translation model to make it work as a language model. Readme of the original model is below.
+This is a derivation on the original transformer translation model to make it work as a language model. Readme of the original model is below. Download the data as specified below and take a look at [run.txt](run.txt) for running both training and prediction on this langauge model, which is much similar to how the derived translation model is run.
 
 
 ## Transformer Translation Model
