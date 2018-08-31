@@ -1,3 +1,4 @@
-# TransformerDecoder model data
-transformer_decoder/model_parameters*/
-transformer_decoder/test_data*/
+# model and test data folders
+model_parameters*/
+test_data*/
+**/debug_dataset.txt
