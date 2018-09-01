@@ -21,11 +21,11 @@ from __future__ import print_function
 import tensorflow as tf
 
 
-class FeedFowardNetwork(tf.layers.Layer):
+class FeedForwardNetwork(tf.layers.Layer):
     """Fully connected feedforward network."""
 
     def __init__(self, hidden_size, filter_size, relu_dropout, train, allow_pad):
-        super(FeedFowardNetwork, self).__init__()
+        super(FeedForwardNetwork, self).__init__()
         self.hidden_size = hidden_size
         self.filter_size = filter_size
         self.relu_dropout = relu_dropout
