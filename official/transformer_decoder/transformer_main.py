@@ -14,8 +14,7 @@
 # ==============================================================================
 """Train and evaluate the TransformerDecoder model.
 
-See README for description of setting the training schedule and evaluating the
-BLEU score.
+See README for description of setting the training schedule.
 """
 
 from __future__ import absolute_import
@@ -33,7 +32,6 @@ from absl import flags
 import tensorflow as tf
 # pylint: enable=g-bad-import-order
 
-from official.transformer_decoder import compute_bleu
 from official.transformer_decoder import generate
 from official.transformer_decoder.model import model_params
 from official.transformer_decoder.model import transformer
@@ -57,7 +55,6 @@ PARAMS_MAP = {
 
 DEFAULT_TRAIN_EPOCHS = 10
 INF = int(1e9)
-BLEU_DIR = "bleu"
 
 # Dictionary containing tensors that are logged by the logging hooks. Each item
 # maps a string to the tensor name.
@@ -201,39 +198,9 @@ def get_train_op_and_metrics(loss, params):
         return train_op, train_metrics
 
 
-def translate_and_compute_bleu(estimator, subtokenizer, bleu_source, bleu_ref):
-    """Translate file and report the cased and uncased bleu scores."""
-    # Create temporary file to store translation.
-    tmp = tempfile.NamedTemporaryFile(delete=False)
-    tmp_filename = tmp.name
-
-    generate.generate_from_file(
-        estimator, subtokenizer, bleu_source, output_file=tmp_filename,
-        print_all_generations=False)
-
-    # Compute uncased and cased bleu scores.
-    uncased_score = compute_bleu.bleu_wrapper(bleu_ref, tmp_filename, False)
-    cased_score = compute_bleu.bleu_wrapper(bleu_ref, tmp_filename, True)
-    tmp.file.close()
-    os.remove(tmp_filename)
-    return uncased_score, cased_score
-
-
 def get_global_step(estimator):
     """Return estimator's last checkpoint."""
     return int(estimator.latest_checkpoint().split("-")[-1])
-
-
-def evaluate_and_log_bleu(estimator, bleu_source, bleu_ref, vocab_file):
-    """Calculate and record the BLEU score."""
-    subtokenizer = tokenizer.Subtokenizer(vocab_file)
-
-    uncased_score, cased_score = translate_and_compute_bleu(
-        estimator, subtokenizer, bleu_source, bleu_ref)
-
-    tf.logging.info("Bleu score (uncased):", uncased_score)
-    tf.logging.info("Bleu score (cased):", cased_score)
-    return uncased_score, cased_score
 
 
 def _validate_file(filepath):
@@ -243,9 +210,9 @@ def _validate_file(filepath):
 
 
 def run_loop(
-        estimator, schedule_manager, train_hooks=None, benchmark_logger=None,
-        bleu_source=None, bleu_ref=None, bleu_threshold=None, vocab_file=None):
-    """Train and evaluate model, and optionally compute model's BLEU score.
+        estimator, schedule_manager, train_hooks=None,
+        benchmark_logger=None, vocab_file=None):
+    """Train and evaluate model.
 
     **Step vs. Epoch vs. Iteration**
 
@@ -264,62 +231,33 @@ def run_loop(
       - A single iteration:
         1. trains the model for a specific number of steps or epochs.
         2. evaluates the model.
-        3. (if source and ref files are provided) compute BLEU score.
 
-    This function runs through multiple train+eval+bleu iterations.
+    This function runs through multiple train+eval iterations.
 
     Args:
       estimator: tf.Estimator containing model to train.
       schedule_manager: A schedule.Manager object to guide the run loop.
       train_hooks: List of hooks to pass to the estimator during training.
       benchmark_logger: a BenchmarkLogger object that logs evaluation data
-      bleu_source: File containing text to be translated for BLEU calculation.
-      bleu_ref: File containing reference translations for BLEU calculation.
-      bleu_threshold: minimum BLEU score before training is stopped.
-      vocab_file: Path to vocab file that will be used to subtokenize bleu_source.
+      vocab_file: Path to vocab file that will be used to subtokenize the input.
 
     Raises:
       ValueError: if both or none of single_iteration_train_steps and
         single_iteration_train_epochs were defined.
-      NotFoundError: if the vocab file or bleu files don't exist.
+      NotFoundError: if the vocab file doesn't exist.
     """
-    if bleu_source:
-        _validate_file(bleu_source)
-    if bleu_ref:
-        _validate_file(bleu_ref)
     if vocab_file:
         _validate_file(vocab_file)
-
-    evaluate_bleu = bleu_source is not None and bleu_ref is not None
-    if evaluate_bleu and schedule_manager.use_tpu:
-        raise ValueError("BLEU score can not be computed when training with a TPU, "
-                         "as it requires estimator.predict which is not yet "
-                         "supported.")
 
     # Print details of training schedule.
     tf.logging.info("Training schedule:")
     tf.logging.info(
         "\t1. Train for {}".format(schedule_manager.train_increment_str))
     tf.logging.info("\t2. Evaluate model.")
-    if evaluate_bleu:
-        tf.logging.info("\t3. Compute BLEU score.")
-        if bleu_threshold is not None:
-            tf.logging.info("Repeat above steps until the BLEU score reaches %f" %
-                            bleu_threshold)
-    if not evaluate_bleu or bleu_threshold is None:
-        tf.logging.info("Repeat above steps %d times." %
-                        schedule_manager.train_eval_iterations)
+    tf.logging.info("Repeat above steps %d times." %
+                    schedule_manager.train_eval_iterations)
 
-    if evaluate_bleu:
-        # Create summary writer to log bleu score (values can be displayed in
-        # Tensorboard).
-        bleu_writer = tf.summary.FileWriter(
-            os.path.join(estimator.model_dir, BLEU_DIR))
-        if bleu_threshold is not None:
-            # Change loop stopping condition if bleu_threshold is defined.
-            schedule_manager.train_eval_iterations = INF
-
-    # Loop training/evaluation/bleu cycles
+    # Loop training/evaluation cycles
     for i in xrange(schedule_manager.train_eval_iterations):
         tf.logging.info("Starting iteration %d" % (i + 1))
 
@@ -338,33 +276,6 @@ def run_loop(
                         (i + 1, schedule_manager.train_eval_iterations))
         tf.logging.info(eval_results)
         benchmark_logger.log_evaluation_result(eval_results)
-
-        # The results from estimator.evaluate() are measured on an approximate
-        # translation, which utilize the target golden values provided. The actual
-        # bleu score must be computed using the estimator.predict() path, which
-        # outputs translations that are not based on golden values. The translations
-        # are compared to reference file to get the actual bleu score.
-        if evaluate_bleu:
-            uncased_score, cased_score = evaluate_and_log_bleu(
-                estimator, bleu_source, bleu_ref, vocab_file)
-
-            # Write actual bleu scores using summary writer and benchmark logger
-            global_step = get_global_step(estimator)
-            summary = tf.Summary(value=[
-                tf.Summary.Value(tag="bleu/uncased", simple_value=uncased_score),
-                tf.Summary.Value(tag="bleu/cased", simple_value=cased_score),
-            ])
-            bleu_writer.add_summary(summary, global_step)
-            bleu_writer.flush()
-            benchmark_logger.log_metric(
-                "bleu_uncased", uncased_score, global_step=global_step)
-            benchmark_logger.log_metric(
-                "bleu_cased", cased_score, global_step=global_step)
-
-            # Stop training if bleu stopping threshold is met.
-            if model_helpers.past_stop_threshold(bleu_threshold, uncased_score):
-                bleu_writer.close()
-                break
 
 
 def define_transformer_flags():
@@ -421,21 +332,6 @@ def define_transformer_flags():
             "The Number of training steps to run between evaluations. This is "
             "used if --train_steps is defined."))
 
-    # BLEU score computation
-    flags.DEFINE_string(
-        name="bleu_source", short_name="bls", default=None,
-        help=flags_core.help_wrap(
-            "Path to source file containing text translate when calculating the "
-            "official BLEU score. Both --bleu_source and --bleu_ref must be set. "
-            "Use the flag --stop_threshold to stop the script based on the "
-            "uncased BLEU score."))
-    flags.DEFINE_string(
-        name="bleu_ref", short_name="blr", default=None,
-        help=flags_core.help_wrap(
-            "Path to source file containing text translate when calculating the "
-            "official BLEU score. Both --bleu_source and --bleu_ref must be set. "
-            "Use the flag --stop_threshold to stop the script based on the "
-            "uncased BLEU score."))
     flags.DEFINE_string(
         name="vocab_file", short_name="vf", default=None,
         help=flags_core.help_wrap(
@@ -454,22 +350,6 @@ def define_transformer_flags():
                 "defined.")
     def _check_train_limits(flag_dict):
         return flag_dict["train_epochs"] is None or flag_dict["train_steps"] is None
-
-    @flags.multi_flags_validator(
-        ["bleu_source", "bleu_ref"],
-        message="Both or neither --bleu_source and --bleu_ref must be defined.")
-    def _check_bleu_files(flags_dict):
-        return (flags_dict["bleu_source"] is None) == (
-                flags_dict["bleu_ref"] is None)
-
-    @flags.multi_flags_validator(
-        ["bleu_source", "bleu_ref", "vocab_file"],
-        message="--vocab_file must be defined if --bleu_source and --bleu_ref "
-                "are defined.")
-    def _check_bleu_vocab_file(flags_dict):
-        if flags_dict["bleu_source"] and flags_dict["bleu_ref"]:
-            return flags_dict["vocab_file"] is not None
-        return True
 
     @flags.multi_flags_validator(
         ["export_dir", "vocab_file"],
@@ -611,10 +491,6 @@ def run_transformer(flags_obj):
         schedule_manager=schedule_manager,
         train_hooks=train_hooks,
         benchmark_logger=benchmark_logger,
-        # BLEU calculation arguments
-        bleu_source=flags_obj.bleu_source,
-        bleu_ref=flags_obj.bleu_ref,
-        bleu_threshold=flags_obj.stop_threshold,
         vocab_file=flags_obj.vocab_file)
 
     if flags_obj.export_dir:
