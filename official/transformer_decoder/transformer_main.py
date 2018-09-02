@@ -21,24 +21,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import functools
-import os
-import tempfile
-
-# pylint: disable=g-bad-import-order
-from six.moves import xrange  # pylint: disable=redefined-builtin
+import tensorflow as tf
 from absl import app as absl_app
 from absl import flags
-import tensorflow as tf
-# pylint: enable=g-bad-import-order
+# pylint: disable=g-bad-import-order
+from six.moves import xrange  # pylint: disable=redefined-builtin
 
-from official.transformer_decoder import generate
 from official.transformer_decoder.model import model_params
 from official.transformer_decoder.model import transformer
 from official.transformer_decoder.utils import dataset
 from official.transformer_decoder.utils import metrics
 from official.transformer_decoder.utils import schedule
-from official.transformer_decoder.utils import tokenizer
 from official.utils.accelerator import tpu as tpu_util
 from official.utils.export import export
 from official.utils.flags import core as flags_core
@@ -46,6 +39,8 @@ from official.utils.logs import hooks_helper
 from official.utils.logs import logger
 from official.utils.misc import distribution_utils
 from official.utils.misc import model_helpers
+
+# pylint: enable=g-bad-import-order
 
 PARAMS_MAP = {
     "tiny": model_params.TINY_PARAMS,

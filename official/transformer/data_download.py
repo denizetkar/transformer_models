@@ -24,14 +24,15 @@ import tarfile
 
 # pylint: disable=g-bad-import-order
 import six
-from six.moves import urllib
+import tensorflow as tf
 from absl import app as absl_app
 from absl import flags
-import tensorflow as tf
-# pylint: enable=g-bad-import-order
+from six.moves import urllib
 
 from official.transformer.utils import tokenizer
 from official.utils.flags import core as flags_core
+
+# pylint: enable=g-bad-import-order
 
 # Data sources for training/evaluating the transformer translation model.
 # If any of the training sources are changed, then either:

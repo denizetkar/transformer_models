@@ -32,8 +32,8 @@ import math
 
 import numpy as np
 import six
-from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
+from six.moves import xrange  # pylint: disable=redefined-builtin
 
 
 def _pad_tensors_to_same_length(x, y):

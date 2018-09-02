@@ -20,14 +20,15 @@ from __future__ import print_function
 
 import os
 
+import tensorflow as tf
 # pylint: disable=g-bad-import-order
 from absl import app as absl_app
 from absl import flags
-import tensorflow as tf
-# pylint: enable=g-bad-import-order
 
 from official.transformer.utils import tokenizer
 from official.utils.flags import core as flags_core
+
+# pylint: enable=g-bad-import-order
 
 _DECODE_BATCH_SIZE = 32
 _EXTRA_DECODE_LENGTH = 100

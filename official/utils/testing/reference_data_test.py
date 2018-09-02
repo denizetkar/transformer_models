@@ -32,6 +32,7 @@ import unittest
 import warnings
 
 import tensorflow as tf  # pylint: disable=g-bad-import-order
+
 from official.utils.testing import reference_data
 
 

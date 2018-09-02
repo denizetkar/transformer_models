@@ -25,8 +25,6 @@ import tempfile
 import uuid
 
 import numpy as np
-import six
-
 import tensorflow as tf
 
 

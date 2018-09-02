@@ -26,8 +26,8 @@ import time
 import unittest
 
 import mock
-from absl.testing import flagsaver
 import tensorflow as tf  # pylint: disable=g-bad-import-order
+from absl.testing import flagsaver
 
 try:
     from google.cloud import bigquery
