@@ -1,0 +1,22 @@
+COMMANDS TO RUN FROM TERMINAL
+
+cd /d D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier
+set PYTHONPATH=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models
+set DATA_DIR=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\test_data
+set MODEL_DIR=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\model_parameters
+set VOCAB_FILE=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\test_data\vocab.ende.32768
+
+python data_download.py --data_dir=%DATA_DIR%
+python transformer_main.py --data_dir=%DATA_DIR% --model_dir=%MODEL_DIR% --vocab_file=%VOCAB_FILE% --param_set=base --train_steps=500 --steps_between_evals=100
+python classify.py --model_dir=%MODEL_DIR% --vocab_file=%VOCAB_FILE% --param_set=base --file=test_data\newstest2014.en --file_out=classification.en
+
+
+
+
+
+
+
+PYCHARM DEBUG COMMAND LINE ARGUMENTS:
+
+--data_dir=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\test_data --model_dir=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\model_parameters --transfer_model_dir=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_decoder\model_parameters --vocab_file=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\test_data\vocab.ende.32768 --param_set=base --num_classes=2 --train_steps=500 --steps_between_evals=100
+--model_dir=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\model_parameters --vocab_file=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\test_data\vocab.ende.32768 --file=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\test_data\newstest2014_short.en --file_out=D:\Users\deniz\Desktop\DOSYALAR\workspace\transformer_models\official\transformer_classifier\classification.en  --param_set=base --num_classes=2
