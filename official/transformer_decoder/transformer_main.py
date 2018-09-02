@@ -106,9 +106,10 @@ def model_fn(features, mode, params):
         if mode == tf.estimator.ModeKeys.EVAL:
             if params["use_tpu"]:
                 # host call functions should only have tensors as arguments.
-                # functools.partial() pre-populates params so that metric_fn is
+                # This lambda pre-populates params so that metric_fn is
                 # TPUEstimator compliant.
-                metric_fn = functools.partial(metrics.get_eval_metrics, params=params)
+                metric_fn = lambda logits, labels: (
+                    metrics.get_eval_metrics(logits, labels, params=params))
                 eval_metrics = (metric_fn, [logits, inputs])
                 return tf.contrib.tpu.TPUEstimatorSpec(
                     mode=mode, loss=loss, predictions={"predictions": logits},
@@ -493,7 +494,7 @@ def run_transformer(flags_obj):
         benchmark_logger=benchmark_logger,
         vocab_file=flags_obj.vocab_file)
 
-    if flags_obj.export_dir:
+    if flags_obj.export_dir and not params["use_tpu"]:
         serving_input_fn = export.build_tensor_serving_input_receiver_fn(
             shape=[None], dtype=tf.int32, batch_size=None)
         # Export saved model, and save the vocab file as an extra asset. The vocab
