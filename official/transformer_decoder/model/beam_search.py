@@ -21,6 +21,8 @@ https://github.com/tensorflow/tensor2tensor/blob/master/tensor2tensor/utils/beam
 import tensorflow as tf
 from tensorflow.python.util import nest
 
+from official.transformer_decoder.utils.tokenizer import PAD_ID
+
 # Default value for INF
 INF = 1. * 1e7
 
@@ -105,7 +107,7 @@ class SequenceBeamSearch(object):
         Returns:
             state and shape invariant dictionaries with keys from _StateKeys
         """
-        initial_ids = tf.concat([tf.zeros([self.batch_size, 1], dtype=tf.int32),
+        initial_ids = tf.concat([tf.constant(PAD_ID, shape=[self.batch_size, 1], dtype=tf.int32),
                                  initial_ids],
                                 axis=1)
 

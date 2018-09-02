@@ -21,6 +21,7 @@ from __future__ import print_function
 import tensorflow as tf  # pylint: disable=g-bad-import-order
 
 from official.utils.accelerator import tpu as tpu_utils
+from official.transformer_decoder.utils.tokenizer import PAD_ID
 
 
 class EmbeddingSharedWeights(tf.layers.Layer):
@@ -69,7 +70,7 @@ class EmbeddingSharedWeights(tf.layers.Layer):
         """
         with tf.name_scope("embedding"):
             # Create binary mask of size [batch_size, length]
-            mask = tf.to_float(tf.not_equal(x, 0))
+            mask = tf.to_float(tf.not_equal(x, PAD_ID))
 
             if self.method == "gather":
                 embeddings = tf.gather(self.shared_weights, x)

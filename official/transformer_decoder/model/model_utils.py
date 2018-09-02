@@ -22,6 +22,8 @@ import math
 
 import tensorflow as tf
 
+from official.transformer_decoder.utils.tokenizer import PAD_ID
+
 _NEG_INF = -1e9
 
 
@@ -102,7 +104,7 @@ def get_decoder_self_attention_bias(length):
     return decoder_bias
 
 
-def get_padding(x, padding_value=0):
+def get_padding(x, padding_value=PAD_ID):
     """Return float tensor representing the padding values in x.
 
     Args:

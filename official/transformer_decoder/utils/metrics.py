@@ -35,6 +35,8 @@ import six
 import tensorflow as tf
 from six.moves import xrange  # pylint: disable=redefined-builtin
 
+from official.transformer_decoder.utils.tokenizer import PAD_ID
+
 
 def _pad_tensors_to_same_length(x, y):
     """Pad x and y so that the results have the same length (second dimension)."""
@@ -44,8 +46,10 @@ def _pad_tensors_to_same_length(x, y):
 
         max_length = tf.maximum(x_length, y_length)
 
-        x = tf.pad(x, [[0, 0], [0, max_length - x_length], [0, 0]])
-        y = tf.pad(y, [[0, 0], [0, max_length - y_length]])
+        x = tf.pad(x, [[0, 0], [0, max_length - x_length], [0, 0]],
+                   constant_values=PAD_ID)
+        y = tf.pad(y, [[0, 0], [0, max_length - y_length]],
+                   constant_values=PAD_ID)
         return x, y
 
 
@@ -83,7 +87,7 @@ def padded_cross_entropy_loss(logits, labels, smoothing, vocab_size):
                     low_confidence * tf.log(low_confidence + 1e-20))
             xentropy -= normalizing_constant
 
-        weights = tf.to_float(tf.not_equal(labels, 0))
+        weights = tf.to_float(tf.not_equal(labels, PAD_ID))
         return xentropy * weights, weights
 
 
@@ -141,20 +145,20 @@ def get_eval_metrics(logits, labels, params):
 
 
 def padded_accuracy(logits, labels):
-    """Percentage of times that predictions matches labels on non-0s."""
+    """Percentage of times that predictions matches labels on non-PAD_IDs."""
     with tf.variable_scope("padded_accuracy", values=[logits, labels]):
         logits, labels = _pad_tensors_to_same_length(logits, labels)
-        weights = tf.to_float(tf.not_equal(labels, 0))
+        weights = tf.to_float(tf.not_equal(labels, PAD_ID))
         outputs = tf.to_int32(tf.argmax(logits, axis=-1))
         padded_labels = tf.to_int32(labels)
         return tf.to_float(tf.equal(outputs, padded_labels)), weights
 
 
 def padded_accuracy_topk(logits, labels, k):
-    """Percentage of times that top-k predictions matches labels on non-0s."""
+    """Percentage of times that top-k predictions matches labels on non-PAD_IDs."""
     with tf.variable_scope("padded_accuracy_topk", values=[logits, labels]):
         logits, labels = _pad_tensors_to_same_length(logits, labels)
-        weights = tf.to_float(tf.not_equal(labels, 0))
+        weights = tf.to_float(tf.not_equal(labels, PAD_ID))
         effective_k = tf.minimum(k, tf.shape(logits)[-1])
         _, outputs = tf.nn.top_k(logits, k=effective_k)
         outputs = tf.to_int32(outputs)
@@ -171,10 +175,10 @@ def padded_accuracy_top5(logits, labels):
 
 
 def padded_sequence_accuracy(logits, labels):
-    """Percentage of times that predictions matches labels everywhere (non-0)."""
+    """Percentage of times that predictions matches labels everywhere (non-PAD_ID)."""
     with tf.variable_scope("padded_sequence_accuracy", values=[logits, labels]):
         logits, labels = _pad_tensors_to_same_length(logits, labels)
-        weights = tf.to_float(tf.not_equal(labels, 0))
+        weights = tf.to_float(tf.not_equal(labels, PAD_ID))
         outputs = tf.to_int32(tf.argmax(logits, axis=-1))
         padded_labels = tf.to_int32(labels)
         not_correct = tf.to_float(tf.not_equal(outputs, padded_labels)) * weights
