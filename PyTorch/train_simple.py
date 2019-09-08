@@ -1,15 +1,22 @@
 from PyTorch import transformer, nlp
 import torch
 import numpy as np
+import torch.nn.utils.rnn as rnn
 
 
-def data_gen(V, batch, n_batches):
+def data_gen(V, batch, n_batches, max_seq_length):
     # Generate random data for a src-tgt copy task
+    # 0 -> padding, 1 -> SOS, 2 -> EOS
     for i in range(n_batches):
-        data = torch.from_numpy(np.random.randint(1, V, size=(batch, 10))).long().cuda()
-        data[:, 0] = 1
-        src = data.clone()
-        tgt = data.clone()
+        src_seq_list, tgt_seq_list = [], []
+        for j in range(batch):
+            src_seq_list.append(torch.randint(3, V, (np.random.randint(1, max_seq_length + 1),)))
+            tgt_seq_list.append(torch.cat([
+                torch.tensor([1]),
+                src_seq_list[j],
+                torch.tensor([2])]))
+        src = rnn.pad_sequence(src_seq_list, batch_first=True, padding_value=0).long().cuda()
+        tgt = rnn.pad_sequence(tgt_seq_list, batch_first=True, padding_value=0).long().cuda()
         yield nlp.Batch(src, tgt, 0)
 
 
@@ -33,13 +40,14 @@ class SimpleLossCompute:
 
 # Train the simple copy task
 V = 11
+MAX_SEQ_LENGTH = 10
 criterion = nlp.LabelSmoothing(size=V, padding_idx=0, smoothing=0.0)
 model = transformer.make_model(V, V, N=2).cuda()
 model_opt = nlp.NoamOpt(model.src_embed[0].d_model, 1, 400,
                         torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9))
 
 model.train()
-nlp.run_epoch(data_gen(V, 50, 200), model,
+nlp.run_epoch(data_gen(V, 200, 300, MAX_SEQ_LENGTH), model,
               SimpleLossCompute(model.generator, criterion, model_opt))
 # model.eval()
 # print(nlp.run_epoch(data_gen(V, 30, 5), model,
@@ -60,6 +68,6 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
 
 
 model.eval()
-src = torch.tensor([list(range(1, 11))]).cuda()
-src_mask = torch.ones(1, 1, 10).cuda()
-print(greedy_decode(model, src, src_mask, max_len=10, start_symbol=1))
+src = torch.tensor([list(range(3, 11))]).cuda()
+src_mask = torch.ones(1, 1, 8).cuda()
+print(greedy_decode(model, src, src_mask, max_len=MAX_SEQ_LENGTH, start_symbol=1))
