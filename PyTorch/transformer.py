@@ -225,3 +225,24 @@ def make_model(src_vocab, tgt_vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0
         if p.dim() > 1:
             nn.init.xavier_uniform_(p)
     return model
+
+
+class SimpleLossCompute:
+    # A simple loss compute and train function
+    def __init__(self, generator, criterion, opt=None, update_interval=1):
+        self.generator = generator
+        self.criterion = criterion
+        self.opt = opt
+        self.update_interval = update_interval
+        self._grad_count = 0
+
+    def __call__(self, x, y, norm):
+        x = self.generator(x)
+        loss = self.criterion(x.contiguous().view(-1, x.size(-1)),
+                              y.contiguous().view(-1)) / norm
+        loss.backward()
+        self._grad_count += 1
+        if self.opt is not None and self._grad_count % self.update_interval == 0:
+            self.opt.step()
+            self.opt.optimizer.zero_grad()
+        return loss.item() * norm.item()

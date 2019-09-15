@@ -6,19 +6,19 @@ import time
 
 class Batch:
 
-    def __init__(self, src, trg=None, pad=0):
+    def __init__(self, src, trg=None, src_pad=0, tgt_pad=0):
         self.src = src
-        self.src_mask = (src != pad).unsqueeze(-2)
+        self.src_mask = (src != src_pad).unsqueeze(-2)
         if trg is not None:
             self.trg = trg[:, :-1]
             self.trg_y = trg[:, 1:]
-            self.trg_mask = self.make_std_mask(self.trg, pad)
-            self.n_tokens = (self.trg_y != pad).sum()
+            self.trg_mask = self.make_std_mask(self.trg, tgt_pad)
+            self.n_tokens = (self.trg_y != tgt_pad).sum()
 
     @staticmethod
-    def make_std_mask(tgt, pad):
+    def make_std_mask(tgt, tgt_pad):
         # Create a mask to hide padding and future words
-        tgt_mask = (tgt != pad).unsqueeze(-2)
+        tgt_mask = (tgt != tgt_pad).unsqueeze(-2)
         tgt_mask = tgt_mask & transformer.subsequent_mask(tgt.size(-1)).type_as(tgt_mask)
         return tgt_mask
 
@@ -39,7 +39,7 @@ def run_epoch(data_iter, model, loss_compute):
             print("Epoch step %d, Loss: %f, Tokens per Sec: %f" % (i, loss / batch.n_tokens.item(), tokens / elapsed))
             start = time.time()
             tokens = 0
-    return total_loss / total_tokens
+    return total_loss / total_tokens if total_tokens != 0 else None
 
 
 global max_src_in_batch, max_tgt_in_batch
@@ -82,26 +82,26 @@ class NoamOpt:
 
 def get_std_opt(model):
     return NoamOpt(model.src_embed[0].d_model, 2, 4000,
-                   torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+                   torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9))
 
 
 class LabelSmoothing(nn.Module):
 
-    def __init__(self, size, padding_idx, smoothing=0.0):
+    def __init__(self, tgt_vocab_size, tgt_padding_val, smoothing=0.0):
         super().__init__()
         self.criterion = nn.KLDivLoss(reduction='sum')
-        self.padding_idx = padding_idx
+        self.tgt_padding_val = tgt_padding_val
         self.confidence = 1.0 - smoothing
         self.smoothing = smoothing
-        self.size = size
+        self.tgt_vocab_size = tgt_vocab_size
         self.true_dist = None
 
     def forward(self, x, target):
-        assert x.size(1) == self.size
-        true_dist = torch.full(x.size(), self.smoothing / (self.size - 2), device=x.device)
+        assert x.size(1) == self.tgt_vocab_size
+        true_dist = torch.full(x.size(), self.smoothing / (self.tgt_vocab_size - 2), device=x.device)
         true_dist.scatter_(1, target.unsqueeze(1), self.confidence)
-        true_dist[:, self.padding_idx] = 0
-        mask = torch.nonzero(target == self.padding_idx)
+        true_dist[:, self.tgt_padding_val] = 0
+        mask = torch.nonzero(target == self.tgt_padding_val)
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         self.true_dist = true_dist
