@@ -98,10 +98,8 @@ class Seq2SeqPreProcessor:
                     tgt_token_to_freq[token] = 1
                 else:
                     tgt_token_to_freq[token] += 1
-        src_token_to_freq = [(token, src_token_to_freq[token])
-                             for token in src_token_to_freq]
-        tgt_token_to_freq = [(token, tgt_token_to_freq[token])
-                             for token in tgt_token_to_freq]
+        src_token_to_freq = list(src_token_to_freq.items())
+        tgt_token_to_freq = list(tgt_token_to_freq.items())
         # sort count of occurrences in descending order
         src_token_to_freq.sort(key=lambda x: x[1], reverse=True)
         tgt_token_to_freq.sort(key=lambda x: x[1], reverse=True)
