@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -124,8 +123,8 @@ class DecoderLayer(nn.Module):
 
 def subsequent_mask(size):
     attn_shape = (1, size, size)
-    mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-    return torch.from_numpy(mask) == 0
+    mask = torch.tril(torch.ones(attn_shape), diagonal=0).bool()
+    return mask
 
 
 def attention(query, key, value, mask=None, dropout=None):
